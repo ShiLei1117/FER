@@ -1,0 +1,468 @@
+图片格式转换
+
+import os 
+import sys
+import cv2 
+import numpy as np
+def listfiles(rootDir):
+  list_dirs = os.walk(root Dir) ：
+  for root, dirs, files in list_dirs: 
+     ford d in dirs:
+       print os.path.join(root，d) 
+     for f in files:
+     
+       fileid = f.split('.')[0]
+       
+       filepath = os.path.join(root,f) 
+       try:
+          src = cv2.imread(filepath,1) 
+          print"src=",filepath,src.shape 
+          os.remove(filepath)
+      #将图片格式全部转换为.jpg格式
+cv2.imwrite(os.path.join(root, fileid+."jpg"),src)
+              except:
+                os.remove(filepath) 
+                continue
+listfiles(sys.argv[1]) ##输入文件夹即可
+
+
+数据清洗（调用opencv的人脸检测算法进行筛选，删除不符合要求的图片）
+#coding:utf8 
+import cv2 
+import dlib 
+import numpy as np 
+import sys 
+import os 
+cascade_path='haarcascade_frontalface_d efault.xml' 
+cascade = cv2.CascadeClassifier(cascade_path)
+images = os. listdir(sys argv[1]) 
+for image in images:
+    im=cv2.imread(os.path.join(sys.argv[1],image),1)
+    rects = Cascade.detectMultiScale(im,1.3.5)
+    print "detected face" len(rects) 
+    if len(rects) == 0:
+         cv2.namedWindow('Result',0) 
+         cv2.imshow('Result',im)
+         os.remove(os.path.join(sys.argv[1],image))
+         k = cv2.waitKey(0) 
+         if k == ord('q'):
+             break
+
+
+提取嘴唇区域（利用opencv+Dlib算法提取嘴唇区域,并适当扩大）
+import cv2.
+Import dlib 
+import numpy as np 
+import sys 
+import os 
+PREDICTOR_PATH = "shape predictor_68_face landmarks.dat" 
+predictor = dlib.shape_predictor(PREDICTOR_PATH) 
+cascade_path='haarcascade_frontalface_default.xml 
+cascade = cv2.Cascade Classifier(cascade_path)
+def get_landmarks(im):
+    rects = cascade.detectMultiScale(im,1.3,5) 
+    x,y, h = rects[0] 
+    rect=dlib.rectangle(x,y,x+w,y+h)
+    return np.matrix([[p.x,p.y] for p in predictor(im, rect).parts()])
+def annotate_landmarks(im, landmarks):
+    im = im.copy() 
+    for idx, point in enumerate(landmarks):
+        pos = (point[0,0], point[0,0] )
+        cv2.putText(im, str(idx), pos,
+                fontFace=cv2.FONT_HERSHEY_SCRIPT_SI MPLEX,
+                fontScale=0.4,
+                color=(0, 0, 255)) 
+        cv2. circle(im, pos, 5, color=(0, 255. 255))
+    return im
+def geflipfromimage(im, landmarks): 
+    xmin = 10000 
+    xmax = 0 
+    ymin = 10000 
+    ymax = 0
+    for i in range(48,67);
+        x = landmarks[1,0]
+        y = landmarks[i,1] 
+        if  x < xmin:
+             xmin = x 
+        if x > xmax:
+             xmax = x 
+        if y<ymin:
+             ymin = y 
+        if y> ymax
+             ymax = y
+     print 'xmin=",xmin 
+     print xmax='xmax 
+     print 'ymin="ymin 
+     print 'ymax="ymax
+     roiwidth = xmax - xmin 
+     roiheight = ymax - ymin
+     roi = im[ymin:ymax,xmin:xmax,0:3]
+     if roiwidth > roiheight:
+         dstlen = 1.5*rowidth
+     else
+         dstlen = 1.5*roiheight:
+     diff_xlen = dstlen – roiwidth 
+     diff_ylen = dstlen - roiheight
+     newx = xmin 
+     newy = ymin
+     imagerows.imagecols,channel = im.shape
+     if newx >= diff_xlen/2 and newx + roiwidth + diff_xlen/2 < imagecols:
+        newx = newx – diff_xlen/2;
+     elif newx < diff_xlen/2:
+        newx = 0; 
+     else:
+        newx = imagecols – dstlen;
+     if newy >= diff_ylen/2 and newy + roiheight + diff_ylen/2 < imagerows:
+        newy = newy - diff_ylen/2 
+     elif newy <diff_ylen/2:
+        newy = 0; 
+     else
+        newy = imagecols - dstlen
+        
+     roi = im[int(newy):int(newy+dstlen),int(newx):int (newx+dstlen),0:3]
+     return roi
+
+def listfiles(rootDir):
+  list_dirs = os.walk(rootDir) 
+  for root, dirs, files in list_dirs. 
+    for d in dirs:
+      print os.path.join(root,d) 
+    for f in files:
+      fileid = f.split('.')[0]
+      filepath = os path join(root,f)
+      try:
+          im = cv2.imread(filepath, 1) 
+    landmarks = get_landmarks(im)
+          roi = getlipfromimage(im,landmarks)
+          roipath = filepath.replace('.Jpg', 'mouth.png')
+          cv2.imwrite(roipath,roi) 
+       except:
+          print 'error" 
+          continue
+listfiles(sys.argv[1])
+
+
+模型训练
+首先把不同类的图像放在不同的文件夹下面,然后生成一个txt文件,它的每一行的格式是image、labelid,使用的genelist.py脚本如下:
+import os 
+import sys 
+def listfiles(rootDir.txtfile,label=0)：
+  fixtfile = open(txtfile,'w') 
+  list_dirs - os.walk(rootDir) 
+  count=0 
+  dircount = 0 
+  for root, dirs, files in list_dirs: 
+    for d in dirs:
+      print os.path.join(root.d)
+      dircount = dircount +1 
+    for f in files:
+      print os.path.join(root.f)
+      ftxtfile.write(os.path.join(root.f)+' ' + str(label)+ '\n')
+      count = count+1 
+  print rootDir+"has" + str(count)+"files"
+if_name_ =='_main__':
+  listfiles('../../../../datas/mouth/0','mouth0.txt',0) 
+  listfiles('../../../../datas/mouth/1','mouth1.txt',1)
+
+需要将其分为训练集和测试集,使用split_train_val.py：
+import sys 
+def splittrain_val(fileall valratio=0.1):
+  fileids = fileall.split('.') 
+  fileid fileids[len(filelds)-2] 
+  f = open(fileall); 
+  ftrain=open(fileld+"_train.txt",'w'); 
+  fval = open(fileid+'_val.txt",'w'); 
+  count=0 
+  if valratio == 0 or valratio >= 1:
+      valratio = 0.1
+  interval = (int)(1.0 / valratio) 
+  while 1.
+    line = f.readline()
+    if line:
+       count = count + 1 
+       if count % interval == 0:
+        fval.write(line) 
+       else：
+        ftrain.write(line) 
+    else:
+       break 
+splittrain val(sys.argv[1]，0.1)
+
+接下来定义一个类:叫imagedata，用于生成tensorflow中要使用的数据指针，使用dataset.py:
+import tensorflow as tf 
+from tensorflow.contrib.data import Dataset 
+from tensorflow.python framework import dtypes 
+from tensorflow.python.framework.ops import convert_to_tensor 
+import numpy as np 
+class ImageData:
+      def read_txt_file(self):
+                 #read_txt_file数据读取函数
+        self.img_paths =[] 
+        self labels = []
+        for line in open(self.txt_file,'r'):
+          items = line.split(' ') 
+          self.img.paths.append(items[0])
+          self.labels.append(int(items[1])) 
+      def __init__(self, txt_file, batch_size, num_classes,      
+                 #_init_构造函数
+          image_size,buffer_scale=100) 
+        self.image_size = image_size       #要处理成的图片大小image_size
+        self.batch_size = batch_size       #批处理大小batch_size
+        self txt_file = txt_file ##txt list file,stored as: imagename id
+        self.num_classes = num_classes
+        buffer_size = batch_size*buffer_scale
+                 #读取图片
+      self.read_txt_file() 
+      self dataset_size = len(self.labels)
+      print ''num of train datas='',self dataset_size
+      #转换成Tensor
+      self.img.paths = Convert_to_tensortself.img.paths, dtype=dtypes.string)
+      self.labels = convert_to_tensor(self.labels,dtype=dtypes.int32)
+      #创建数据集
+      data = Dataset.from_tensor_slices((self.img.paths, self labels))
+                  #这一步是为了将 img和label合并到一个数据格式,此后将利用它的接口,来循环读取数据做训练。
+      print ''data type='' type(data) 
+      data = data.map(self.parse_function) 
+                  #data.map是数据的预处理,包括读取图片、转换格式、随机旋转等操作
+      data = data repeat(1000)
+                  #data = data.rpeat（1000）是将数据复制1000 份,这可以满足我们训练1000个 epochs
+      data = data.shuffle(buffer_size=buffer_size)
+                  #buter_size就是在做shuffle操作时的控制变量,内存越大,就可以用越大的值
+      #设置 self data Batch 
+      self data = data.batch(batch_size) 
+                 #self.data = data.batch(batch_size),就是从上面创建的 dataset中,一次取一个batch的数据
+      print 'self.data type='type(self.data)
+
+      def augment_dataset(self,image,size):
+        distorted_image = tf.image.random_brightness(image,
+                              max_delta=63) 
+        distorted_image= tf.image.random.contrast(distorted_image,
+                            lower=0.2 upper=1.8)
+        # Subtract off the mean and divide by the variance of the pixels.
+        float_image = tf.image.per_image_standardization(distorted_image)
+        return float_image
+
+      def parse_function(self, filename, label):
+        label = tf.one_hot(label,self.num_classes)
+        img = tf.read_file(filename)
+        img = tf.image.decode_jpeg(img. channels=3)
+        img = tf.image.convert_image_dtype(img, dtype = tf.float32)
+        img = tf.random_crop(img, [self.image_size[0],self.image_size[1],3])
+        img = tf.image.random_flip_left_right(img)
+        img = self.augment_dataset(img, self.image_size)
+        return img, label_
+
+模型定义（创建数据接口后,我们开始定义一个网络net.py）
+def simpleconv3net(x):       
+      x_shape = tf.shape(x)        
+      with tf.variable_scope("conv3_net"):
+        conv1 = tf.layers.conv2D(x, name="conv1", filters=12, kernel_size=[3,3], 
+              #  x是输入, name是网络名字, filters是卷积核数量,kernel_size即卷积核大小
+stride=(2,2)
+activation=tf.nn.relu,kernel_initializer=tf.contrib.layers.xavier_initializer(),bias_initializer
+=tf.contrib.layers.xavier_initializer())
+        bn1 = tf.layers.batch_normalization(conv1,training=True, name='bn1')
+        conv2 = tf.layers.conv2d(bn1, name="conv2", filters=24,kernel_size=(3,3), 
+strides=(2,2), 
+activation=tf.nn.relu,kernel_initializer=tf.contrib.layers.xavier_initializer),bias_initializer
+=tf.contrib.layers.xavier_initializer())
+              # strides是卷积stride, activation即激活函数, kernel_initializer和bias_initializer分别是初始化方法
+strides=(2,2),
+        bn2 = tf.layers.batch_normalization(conv2. training=True, name='bn2")
+        conv3 = tf.layers.conv2d(bn2, name="conv3", filters=48,kernel_size=[3,3], 
+strides=(2,2), 
+activation=tf.nn.relu, kernel_initializer=tf.co ntrib layers.xavier_initializer(),bias_initializer
+=tf.contrib,layers.xavier_initializer())
+        bn3 = tf.layers, batch_normalization(conv3. Training=True, name='bn3')
+        conv3_flat = tf.reshape(bn3,[-1,5* 5 * 48])
+        dense = tf.layers.dense (inputs conv3_flat, units=128,
+activation=tf.nn.relu,name="dense",kernel_1 nitializer=tf.contrib.layers.xavier_initializer())
+        logits = tf.layers.dense(inputs-dense, units=2, 
+activation=tf.nn.relu name="logits" kernell nitializer=tf.contrib.layers.xavier_initializer())
+        return logits
+
+模型训练train.py
+from dataset import*
+from net import simpleconv3net 
+import sys 
+import os 
+import cv2 
+////------1定义一些全局变量------////
+txtfile = sys.argv[1] 
+batch_size = 64 
+num_classes = 2 
+image_size = (48,48) 
+learning_rate = 0.0001 
+debug=False 
+if __name__=="_main_":
+////------2载入网络结构，定义损失函数，创建计算图------////
+  dataset = ImageData(txtfile batch_size,num_classes, image_size)
+  iterator = dataset.data.make_one_shot_iterator()
+  dataset_size = dataset.dataset_size
+  batch_images,batch_labels = iterator.get_next()
+  Ylogits = simpleconv3net(batch_images)
+  print "Ylogits size=",Ylogits.shape
+  Y = tf.nn.softmax(Ylogits)
+  cross_entropy = tf.nn.softmax_cross_entropy_with_logits(lo gits-Ylogits, labels=batch_labels)
+  cross_entropy = tf.reduce_mean(cross_entropy)
+  correct_prediction = tf.equal(tf.argmax(Y. 1), tf. argmax(batch_labels, 1))
+  accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+  update_ops = tf.get_collection(tf. GraphKeys.UPDATE_OPS)
+  with tf.control_dependencies(update_ops):
+  train_step = tf.train AdamOptimizer(learning_rate).minimize(cross_entropy)
+  saver = tf.train.Saver() 
+  in_steps = 100 
+  checkpoint_dir = 'checkpoints/' 
+  if not os.path.exists(checkpoint_dir):
+  os.mkdir(checkpoint_dir) 
+  log_dir='logs/' 
+  if not os path.exists(log_dir):
+  os.mkdir(log_dir) 
+  summary = tf.summary FileWriter(logdir=log_dir)
+  loss_summary = tf.summary.scalar("loss", cross_entropy)
+  acc_summary = tf.summary.scalar("acc". accuracy)
+  image_summary = tf.summary.image("image", batch_images) 
+////------3执行会话，保存相关变量，还可以添加一些debug函数来查看中间结果------//// 
+with tf.Session() as sess:
+    init= tf.global_variables_initializer() 
+    sess.run(init) 
+    steps = 10000 
+    for i in range(steps):
+_,cross_entropy_,accuracy_,batch_images_,batch_labels_,loss_summary_,acc_summar y_，
+image_summary_= 
+sess.run([train_step.cross_entropy,accuracy.batch_images,batch_labels,loss_summary ac
+c_summary,image_summary])
+     if i % in steps == 0 :
+        print i, iterations, loss=",cross_entropy_,''acc='',accuracy_
+        saver save(sess, checkpoint_dir + 'model.ckpt', global_step=i)
+        summary.add_summary(loss_summary_,i)
+        summary.add_summary(acc_summary_,i)
+        summary.add_summary(image_summary_,i)
+
+
+
+载入一个图片，用模型进行测试
+import tensorflow as tf 
+from net import simpleconv3 
+import sys 
+import numpy as np 
+import cv2 
+import os 
+import dlib
+
+PREDICTOR_PATH = "shape_predictor_68_face_landmarks.dat" 
+outputor = dlib.shape_predictor(PREDICTOR_PATH) cascade_path='haarcascade_frontalface_default.xml' 
+cascade = cv2.CascadeClassifier(cascade_path)
+def standardization(data):
+  mu = np.mean(data, axis=0) 
+  sigma = np.std(data, axis=0) 
+  return (data - mu) / sigma
+
+def get_landmarks(im):
+  rects = cascade.detectMultiScale(im, 1.3,5)
+  x.y.w.h =rects[0] 
+  rect=dlib.rectangle(x.y.x+w.y+h)
+  return np.matrix([[p.x. p.y] for p in outputor(im, rect).parts()])
+
+def annotate_landmarks(im, landmarks):
+  im = im.copy() 
+  for idx, point in enumerate(landmarks):
+    pos = (point(0, 0), point(0, 11) 
+    cv2.putText(im, str(idx), pos,
+            fontFace=cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
+            fontScale=0.4
+            color=(0, 0, 255)) 
+    cv2.circle(im, pos, 3, color=(0, 255, 255))
+  return im
+  
+testsize = 48  ##测试图大小 
+Input = tf.placeholder(tf.float32, [1.testsize, testsize, 3]) 
+output = simpleconv3(input,False)  ##定义网络 
+output = tf.nn.softmax(output)     ##网络预测结果
+
+## 全局变量 
+## sys.argv[1] 权重文件
+## sys.argv[2] 图像文件夹
+
+with tf.Session() as sess:
+  init = tf.global_variables_initializer() ## 初始化 
+  sess.run(init) 
+  saver = tf.train.Saver() 
+  saver.restore(sess sys.argv[1]) ##载入权重
+#一次测试一个文件 
+imagepaths = os.listdir(sys.argv[2] ) 
+for imagepath in imagepaths:
+  im = cv2.imread(os.path.join(sys.argv[2],imagepath),1)
+  try:
+    rects = cascade.detectMultiScale(im,1.3,5)
+    x.y.w.h =rects[0] 
+    rect=dlib.rectangle(x,y,x+w.y+h)
+    landmarks = np.matrix([[p.x, p.y] for p in outputor(im, rect).parts()])
+  except: 
+    continue ###没有检测到人脸
+  xmin = 10000 
+  xmax = 0 
+  ymin = 10000 
+  ymax = 0
+  for i in range(48,67):
+    x = landmarks[i,0] 
+    y = landmarks[i.1] 
+    if x < xmin:
+        xmin = x 
+    if x > xmax:
+        xmax = x 
+    If y < ymin:
+        ymin = y 
+    if y > ymax:
+        ymax = y
+  rolwidth = xmax - xmin 
+  roiheight = ymax - ymin
+  roi = im[ymin:ymax,xmin:xmax,0:3]
+  if roiwidth > roiheight:
+    dstlen = 1.5*rolwidth 
+  else:
+    dstlen = 1.5*roiheight
+  diff_xlen = dstlen - roiwidth 
+  diff_ylen = dstlen - roiheight
+  newx = xmin 
+  newy = ymin
+  imagerows, imagecols,channel = im.shape
+  if newx >= diff_xlen/2 and newx + roiwidth + diff_xlen/2 < imagecols:
+    newx= newx- diff_xlen/2:
+  elif newx < diff_xlen/2:
+    newx = 0; 
+  else:
+    newx = imagecols - dstlen;
+  if newy >= diff_ylen/2 and newy + roiheight + diff_ylen/2 < Imagerows:
+    newy = newy - diff_ylen/2; 
+  elif newy < diff_ylen/2:
+    newy = 0; 
+  else:
+    newy = imagecols - dstlen;
+  roi = im[int(newy):int(newy+dstlen), int(newx):int(newx+dstien),0:3]
+  roi = cv2.cvtColor(roi,cv2.COLOR_BGR2RGB)
+  roiresized = cv2.resize(roi, (testsize, testsize))
+  toiresized - standardization(rairesized)
+  imgs = np.zeros([1.testsize testsize, 3],dtype=np.float32)
+  imgs[0:1,] = roiresized 
+  print(imgs.shape)
+  result = sess.run(output, feed_dict ={input:imgs}) ### 进行预测
+  ## 获得结果，并统计指标 
+  result = np-squeeze(result) 
+  print(result) 
+  index = np.argmax(result)
+
+  im_show= cv2.imread(os.path.join(sys.argv[2]，Imagepath),1)
+  im_h，im_w，im_c = im_show.shape 
+  pos_x = int(newx+dstlen) 
+  pos_y = Int(newy+dstlen) 
+  font = cv2.FONT_HERSHEY_SIMPLEX
+  cv2.rectangle(im_show, (int(newx),int(newy)). (int(newx+dstlen),int(newy+dstlen), (0,255,255), 2)
+  if index = 0
+      cv2.putText(im_show, 'none', (pos_x.pos_y), font, 1.2, (0,0,255),1)
+  else:
+      cv2.putText(im_show, 'smile', (pos_x,pos_y), font, 1.2, (0,0,255), 1)
+  cv2.named Window('result",0) 
+  cv2.imshow('result',im_show)
+  cv2.imwrite(os.path.join('results',imagepath) im_show)
+  cv2.waitKey(0)
